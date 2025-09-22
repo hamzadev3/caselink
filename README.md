@@ -1,5 +1,7 @@
 # CaseLink — Python/Regex + SQLite → API
 
+![CI](https://github.com/hamzadev3/caselink/actions/workflows/ci.yml/badge.svg)
+
 **\What this does:**
 
 - creates fake files with messy names in `/_sample`
