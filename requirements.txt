@@ -2,3 +2,5 @@ fastapi
 uvicorn
 SQLAlchemy
 pydantic<2
+pytest
+httpx
