@@ -39,3 +39,29 @@ def cases(limit: int = 50, offset: int = 0):
         return {"cases": [c[0] for c in q.all()]}
     finally:
         s.close()
+
+from fastapi.responses import FileResponse
+import tempfile
+from openpyxl import Workbook
+
+@app.get("/export")
+def export(case: str):
+    s = DBsession()
+    try:
+        rows = s.query(File).filter(File.case_id == case).limit(1000).all()
+    finally:
+        s.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Results"
+    ws.append(["case_id", "filepath", "borough", "kind"])
+
+    for r in rows:
+        ws.append([r.case_id, r.filepath, r.borough or "", r.kind or ""])
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    wb.save(tmp.name)
+    wb.close()
+    return FileResponse(tmp.name, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        filename=f"caselink_{case}.xlsx")

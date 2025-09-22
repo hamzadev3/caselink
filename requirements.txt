@@ -4,3 +4,4 @@ SQLAlchemy
 pydantic<2
 pytest
 httpx
+openpyxl
