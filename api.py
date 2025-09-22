@@ -19,6 +19,7 @@ def startup():
 @app.get("/search")
 def search(case: str = Query(..., min_length=4, max_length=5)):
     s = DBsession()
+    print(f"[search] case={case}")
     try:
         rows = s.query(File).filter(File.case_id == case).limit(500).all()
         return {
