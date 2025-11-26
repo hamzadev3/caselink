@@ -1,9 +1,11 @@
 import re
 
 PATTERNS = [
-    re.compile(r"#\s*(\d{5})"),        # #12345
-    re.compile(r"\(\s*(\d{5})\s*\)"),  # (12345)
-    re.compile(r"(\d{5})(?=[A-Za-z])") # 12345A -> 12345
+    re.compile(r"#\s*(\d{5})"),          
+    re.compile(r"\(\s*(\d{5})\s*\)"),    
+    re.compile(r"(\d{5})(?=[A-Za-z])"),  
+    re.compile(r"(\d{5})_"),             
+    re.compile(r"_(\d{5})")              
 ]
 
 DATE_OR_SIX = re.compile(
@@ -22,12 +24,15 @@ def extract_case(filename: str):
     return None
 
 if __name__ == "__main__":
+    # Test script to verify it works instantly
     tests = [
-        "Bronx_(60012)_address.pdf",
+        "Bronx_60012_address.pdf",
         "report_20240101_60055A.doc",
         "note#12345.txt",
         "phone_5551234.txt",
         "CPC_ignore_77777.pdf"
     ]
+    print("--- DEBUG TEST ---")
     for t in tests:
-        print(t, "->", extract_case(t))
+        res = extract_case(t)
+        print(f"File: {t} -> Extracted: {res}")

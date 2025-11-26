@@ -1,4 +1,3 @@
-# scan.py
 import os
 from pathlib import Path
 from sqlalchemy.exc import IntegrityError
@@ -20,12 +19,19 @@ def scan_folder(root="_sample") -> int:
     init_db()
     s = DBsession()
     added = 0
+    print(f"--- SCANNING {root} ---")
     try:
         for dirpath, _, files in os.walk(root):
             for fn in files:
+                print(f"File: {fn}", end=" ... ")
+                
                 case_id = extract_case(fn)
                 if not case_id:
+                    print("❌ SKIPPED (extract returned None)")
                     continue
+                
+                print(f"✅ FOUND ID: {case_id}", end=" ... ")
+
                 path = str(Path(dirpath) / fn)
                 row = File(
                     case_id=case_id,
@@ -36,9 +42,11 @@ def scan_folder(root="_sample") -> int:
                 try:
                     s.add(row)
                     s.commit()
+                    print("💾 SAVED to DB.")
                     added += 1
                 except IntegrityError:
-                    s.rollback()  # duplicate filepath, ignore
+                    s.rollback()
+                    print("⚠️ DB ERROR (Duplicate?)")
     finally:
         s.close()
     return added

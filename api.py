@@ -1,7 +1,10 @@
-# api.py
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 from db import init_db, DBsession, File
+import tempfile
+from openpyxl import Workbook
 
 app = FastAPI(title="CaseLink API", version="1.0.0")
 
@@ -16,43 +19,35 @@ app.add_middleware(
 def startup():
     init_db()
 
-@app.get("/search")
-def search(case: str = Query(..., min_length=4, max_length=5)):
-    s = DBsession()
-    print(f"[search] case={case}")
+# --- dependency injection ---
+def get_db():
+    db = DBsession()
     try:
-        rows = s.query(File).filter(File.case_id == case).limit(500).all()
-        return {
-            "count": len(rows),
-            "results": [
-                {"case": r.case_id, "filepath": r.filepath, "borough": r.borough, "kind": r.kind}
-                for r in rows
-            ]
-        }
+        yield db
     finally:
-        s.close()
+        db.close()
+
+@app.get("/search")
+def search(case: str = Query(..., min_length=4, max_length=5), s: Session = Depends(get_db)):
+    print(f"[search] case={case}")
+    rows = s.query(File).filter(File.case_id == case).limit(500).all()
+    return {
+        "count": len(rows),
+        "results": [
+            {"case": r.case_id, "filepath": r.filepath, "borough": r.borough, "kind": r.kind}
+            for r in rows
+        ]
+    }
 
 @app.get("/cases")
-def cases(limit: int = 50, offset: int = 0):
-    s = DBsession()
-    try:
-        q = s.query(File.case_id).distinct().offset(offset).limit(limit)
-        return {"cases": [c[0] for c in q.all()]}
-    finally:
-        s.close()
-
-from fastapi.responses import FileResponse
-import tempfile
-from openpyxl import Workbook
+def cases(limit: int = 50, offset: int = 0, s: Session = Depends(get_db)):
+    q = s.query(File.case_id).distinct().offset(offset).limit(limit)
+    return {"cases": [c[0] for c in q.all()]}
 
 @app.get("/export")
-def export(case: str):
-    s = DBsession()
-    try:
-        rows = s.query(File).filter(File.case_id == case).limit(1000).all()
-    finally:
-        s.close()
-
+def export(case: str, s: Session = Depends(get_db)):
+    rows = s.query(File).filter(File.case_id == case).limit(1000).all()
+    
     wb = Workbook()
     ws = wb.active
     ws.title = "Results"
@@ -64,5 +59,4 @@ def export(case: str):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
     wb.save(tmp.name)
     wb.close()
-    return FileResponse(tmp.name, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        filename=f"caselink_{case}.xlsx")
+    return FileResponse(tmp.name, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=f"caselink_{case}.xlsx")
