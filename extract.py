@@ -1,21 +1,25 @@
 import re
 
+# A case ID is a run of EXACTLY five digits: no digit directly before it,
+# no digit directly after it. This rejects pieces of longer numbers
+# (dates like 20240101, phone numbers like 5551234, 6-digit IDs).
+FIVE_DIGITS = r"(?<!\d)(\d{5})(?!\d)"
+
+# Checked in order: explicit markers first, then any standalone 5-digit run.
 PATTERNS = [
-    re.compile(r"#\s*(\d{5})"),          
-    re.compile(r"\(\s*(\d{5})\s*\)"),    
-    re.compile(r"(\d{5})(?=[A-Za-z])"),  
-    re.compile(r"(\d{5})_"),             
-    re.compile(r"_(\d{5})")              
+    re.compile(r"#\s*" + FIVE_DIGITS),              # note#12345
+    re.compile(r"\(\s*" + FIVE_DIGITS + r"\s*\)"),  # notes_(60034)
+    re.compile(FIVE_DIGITS),                        # Bronx_60012_address
 ]
 
-DATE_OR_SIX = re.compile(
-    r"\b((?:19|20)\d{2}[01]\d[0-3]\d|[0-3]\d[01]\d(?:19|20)\d{2}|\d{6})\b"
-)
+# Document types we never index. The word must not touch another letter,
+# so "CPC_ignore" and "DA_60012" match, but "Data" or "Radio" do not.
+EXCLUDE_WORDS = re.compile(r"(?<![A-Za-z])(PDA|DA|CPC|PLANS|RAD)(?![A-Za-z])", re.I)
 
-EXCLUDE_WORDS = re.compile(r"\b(PDA|DA|CPC|PLANS|RAD)\b", re.I)
 
 def extract_case(filename: str):
-    if EXCLUDE_WORDS.search(filename) or DATE_OR_SIX.search(filename):
+    """Return the 5-digit case ID in a filename, or None if there isn't one."""
+    if EXCLUDE_WORDS.search(filename):
         return None
     for pat in PATTERNS:
         m = pat.search(filename)
@@ -23,16 +27,15 @@ def extract_case(filename: str):
             return m.group(1)
     return None
 
+
 if __name__ == "__main__":
-    # Test script to verify it works instantly
     tests = [
         "Bronx_60012_address.pdf",
         "report_20240101_60055A.doc",
         "note#12345.txt",
         "phone_5551234.txt",
-        "CPC_ignore_77777.pdf"
+        "CPC_ignore_77777.pdf",
     ]
     print("--- DEBUG TEST ---")
     for t in tests:
-        res = extract_case(t)
-        print(f"File: {t} -> Extracted: {res}")
+        print(f"File: {t} -> Extracted: {extract_case(t)}")
